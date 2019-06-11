@@ -58,7 +58,18 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
-	return 0;
+
+    uint32_t ebp = read_ebp();
+    while(*(uint32_t*)(ebp)!=0)
+    {
+        cprintf("ebp = %x   ",ebp);
+        cprintf("eip = %x   ",*(uint32_t*)(ebp+0x4));
+        for(uint32_t i=2; i<=6; i++)
+            cprintf(" %x ",*(uint32_t *)(ebp+4*i));
+        ebp = *(uint32_t*)ebp;
+        cprintf("\n");
+    }
+    return 0;
 }
 
 
@@ -114,7 +125,8 @@ monitor(struct Trapframe *tf)
 
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
-    cprintf("This is %s","interesting\n");
+
+
 	while (1) {
 		buf = readline("K> ");
 		if (buf != NULL)
