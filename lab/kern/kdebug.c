@@ -49,7 +49,7 @@ extern const char __STABSTR_END__[];		// End of string table
 //
 static void
 stab_binsearch(const struct Stab *stabs, int *region_left, int *region_right,
-	       int type, uintptr_t addr)
+	       int type, uintptr_t addr)//address = eip
 {
 	int l = *region_left, r = *region_right, any_matches = 0;
 
