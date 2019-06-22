@@ -40,6 +40,33 @@ struct pipecmd {
 int fork1(void);  // Fork but exits on failure.
 struct cmd *parsecmd(char*);
 
+//code support the appendix /bin/ or /usr/bin/
+void support(struct execcmd *ecmd, int choice){
+    char *p = ecmd->argv[0];
+    char *tmp = p;
+    while(*tmp != '\0'){
+        tmp++;
+    }
+    int size = tmp - p + 1;
+    
+    int sum = 0; char *t = NULL;
+    if (choice == 1){
+        sum = size + 6;
+        t = malloc(sum);
+        strncpy(t+5,p,size);
+        t[0]='/';t[1]='b';t[2]='i';t[3]='n';t[4]='/';
+        t[sum] = 0;
+    }
+    else{
+        sum = size + 5;
+        t = malloc(sum);
+        strncpy(t+4,p,size);
+        t[0]='/';t[1]='u';t[2]='s';t[3]='r';
+        t[sum] = 0;
+    }
+    ecmd->argv[0] = t;
+}
+
 // Execute cmd.  Never returns.
 void
 runcmd(struct cmd *cmd)
@@ -61,8 +88,11 @@ runcmd(struct cmd *cmd)
     ecmd = (struct execcmd*)cmd;
     if(ecmd->argv[0] == 0)
       _exit(0);
-    
-    //these code is used for supporting the "/bin/..."
+
+    if(execv(ecmd->argv[0],ecmd->argv)<0){
+/*
+    //these code is used for adding "/bin/" to argv[0], 
+    //when the executable isn't in the working directory.
     char *tmp = ecmd->argv[0];
     char *init = tmp;
     while((*tmp) != '\0')
@@ -74,26 +104,50 @@ runcmd(struct cmd *cmd)
     strncpy(tmp+5, init, size);
     tmp[size]=0;
     ecmd->argv[0] = tmp;
-    //fprintf(stdout,"*argv[0]: %s\n",tmp);
-    
-    int re_execv = execv(ecmd->argv[0],ecmd->argv);
-    fprintf(stderr, "exec error:%d\n",re_execv);
+*/
+    support(ecmd, 1);
+    if(execv(ecmd->argv[0],ecmd->argv)<0){
+        support(ecmd, 2);
+        if(execv(ecmd->argv[0],ecmd->argv)<0){
+            fprintf(stderr,"execv error: %s\n\n",ecmd->argv[0]);
+        }
+    }
+    }
     break;
 
-  case '>':
   case '<':
+  case '>':
     rcmd = (struct redircmd*)cmd;
     //fprintf(stderr, "redir not implemented\n");
-    // Your code here ...
-    
-    
+    close(rcmd->fd);
+    open(rcmd->file, rcmd->flags);
     runcmd(rcmd->cmd);
+    close(rcmd->fd); 
+
     break;
 
   case '|':
     pcmd = (struct pipecmd*)cmd;
-    fprintf(stderr, "pipe not implemented\n");
     // Your code here ...
+    //fprintf(stdout,"%s\n%s\n",((struct execcmd*)(pcmd->left))->argv[0],((struct execcmd*)(pcmd->right))->argv[0]);
+    int p[2];
+    int r;
+    pipe(p);
+    if(fork1()==0){
+        close(p[0]);
+        close(1);
+        dup(p[1]);
+        close(p[1]);
+        runcmd((struct cmd*)(pcmd->left));
+        _exit(0); 
+    }
+    else
+        wait(&r);
+    close(0);
+    dup(p[0]);
+    close(p[0]);
+    close(p[1]);
+    runcmd((struct cmd*)(pcmd->right));
     break;
   }    
   _exit(0);
@@ -118,6 +172,7 @@ main(void)
 
   // Read and run input commands.
   while(getcmd(buf, sizeof(buf)) >= 0){
+    //fprintf(stdout,"%s\n",buf);
     if(buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' '){
       // Clumsy but will have to do for now.
       // Chdir has no effect on the parent if run in the child.
@@ -129,6 +184,8 @@ main(void)
     if(fork1() == 0)
       runcmd(parsecmd(buf));
     wait(&r);
+    
+    //fprintf(stdout,"%s\n",buf);
   }
   exit(0);
 }
