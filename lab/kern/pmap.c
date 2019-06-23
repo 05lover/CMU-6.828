@@ -263,23 +263,35 @@ page_init(void)
 	pages[0].pp_ref = 1;
     pages[0].pp_link = NULL;
     page_free_list = NULL;
-    for (i = 1; i < npages_basemem; i++) {
+  /*for (i = 1; i < npages_basemem; i++) {
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
+  */
     // if the exetened memory are free'd
     // LAM of the kernel is 0x100000, so we can caculate the 
     // corresponding page index.
-    uint32_t kpage_index = 0x100000 / PGSIZE;
-    for(; i < kpage_index; i++) {
+    // As for the IO hole, we just level it there?
+    // npages = (basemem + exemem) / (PGSIZE / 1024)
+    // So npages do not contain the IO hole memory.
+    uint32_t pg_IO_hole = 0xA0000 / PGSIZE;
+    uint32_t pg_start_kern = 0x100000 / PGSIZE;
+    for(i = 1; i < pg_IO_hole; i++) {
         pages[i].pp_ref = 0;
         pages[i].pp_link = page_free_list;
         page_free_list = &pages[i];
     }
-    for(; i < npages; i++) {
+    // There is kern_pgdir right up to the kernel in the RAM.
+    uint32_t pg_kernbss = (0xa0000+0x112300-0x100000+ROUNDUP(0x654, 32))/PGSIZE + 1;
+    for(; i <= pg_kernbss; i++) {
         pages[i].pp_ref = 1;
         pages[i].pp_link = NULL;
+    }
+    for(; i < npages; i++) {
+        pages[i].pp_ref = 0;
+        pages[i].pp_link = page_free_list;
+        page_free_list = &pages[i];
     }
 }
 
@@ -299,7 +311,7 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-    	
+     	
     
     return 0;
 }
