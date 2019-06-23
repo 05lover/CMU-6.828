@@ -260,14 +260,27 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
-	pages[0].pp_ref = 0;
-    pages[0].pp_link = 0;
+	pages[0].pp_ref = 1;
+    pages[0].pp_link = NULL;
     page_free_list = NULL;
     for (i = 1; i < npages_basemem; i++) {
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
 	}
+    // if the exetened memory are free'd
+    // LAM of the kernel is 0x100000, so we can caculate the 
+    // corresponding page index.
+    uint32_t kpage_index = 0x100000 / PGSIZE;
+    for(; i < kpage_index; i++) {
+        pages[i].pp_ref = 0;
+        pages[i].pp_link = page_free_list;
+        page_free_list = &pages[i];
+    }
+    for(; i < npages; i++) {
+        pages[i].pp_ref = 1;
+        pages[i].pp_link = NULL;
+    }
 }
 
 //
@@ -286,7 +299,9 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	return 0;
+    	
+    
+    return 0;
 }
 
 //
