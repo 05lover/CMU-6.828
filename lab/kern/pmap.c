@@ -126,14 +126,14 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+//	panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
 	kern_pgdir = (pde_t *) boot_alloc(PGSIZE);
 	memset(kern_pgdir, 0, PGSIZE);
-
-	//////////////////////////////////////////////////////////////////////
+	
+    //////////////////////////////////////////////////////////////////////
 	// Recursively insert PD in itself as a page table, to form
 	// a virtual page table at virtual address UVPT.
 	// (For now, you don't have understand the greater purpose of the
@@ -154,20 +154,20 @@ mem_init(void)
     // It seems like we don't need to use the boot_alloc, cause page_init says
     // [PAGESIZE, npages_basemem*PAGESIZE] and [0,PAGESIZE] is used by the 
     // kern_pgdir
-    struct PageInfo pages[npages];
+    //struct PageInfo pages[npages];
+    pages = (struct PageInfo*)boot_alloc(sizeof(struct PageInfo)*npages);
     memset((char *)pages, 0, sizeof(struct PageInfo)*npages);
-
-
-	//////////////////////////////////////////////////////////////////////
+	
+    //////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
 	// up the list of free physical pages. Once we've done so, all further
 	// memory management will go through the page_* functions. In
 	// particular, we can now map memory using boot_map_region
 	// or page_insert
 	page_init();
-
-	check_page_free_list(1);
-	check_page_alloc();
+    
+    check_page_free_list(1);
+    check_page_alloc();
 	check_page();
 
 	//////////////////////////////////////////////////////////////////////
@@ -282,9 +282,14 @@ page_init(void)
         pages[i].pp_link = page_free_list;
         page_free_list = &pages[i];
     }
+    for(; i < pg_start_kern; i++) {
+        pages[i].pp_ref = 0;
+        pages[i].pp_link = NULL;
+    }
+    
     // There is kern_pgdir right up to the kernel in the RAM.
-    uint32_t pg_kernbss = (0xa0000+0x112300-0x100000+ROUNDUP(0x654, 32))/PGSIZE + 1;
-    for(; i <= pg_kernbss; i++) {
+    uint32_t pg_kernbss = (0x112300+ROUNDUP(0x654, 32))/PGSIZE + 1 + ROUNDUP(sizeof(struct PageInfo)*npages,PGSIZE) / PGSIZE;
+    for(; i < pg_kernbss; i++) {
         pages[i].pp_ref = 1;
         pages[i].pp_link = NULL;
     }
@@ -311,9 +316,12 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-     	
-    
-    return 0;
+    struct PageInfo *pg_alloc_pi = page_free_list;
+    char *pg_alloc_cp = (char *)page2kva(pg_alloc_pi);
+    memset(pg_alloc_cp, '\0', PGSIZE);
+    page_free_list = pg_alloc_pi->pp_link;
+    pg_alloc_pi->pp_link = NULL;
+    return pg_alloc_pi;
 }
 
 //
@@ -326,6 +334,11 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+    if(pp->pp_ref != 0 || pp->pp_link != NULL) {
+        panic("Can't free this page, it's referenced! OR DOUBLE FREE'D");
+    }
+    pp->pp_link = page_free_list;
+    page_free_list = pp;
 }
 
 //
@@ -483,8 +496,8 @@ check_page_free_list(bool only_low_memory)
 	unsigned pdx_limit = only_low_memory ? 1 : NPDENTRIES;
 	int nfree_basemem = 0, nfree_extmem = 0;
 	char *first_free_page;
-
-	if (!page_free_list)
+	
+    if (!page_free_list)
 		panic("'page_free_list' is a null pointer!");
 
 	if (only_low_memory) {
@@ -494,7 +507,7 @@ check_page_free_list(bool only_low_memory)
 		struct PageInfo **tp[2] = { &pp1, &pp2 };
 		for (pp = page_free_list; pp; pp = pp->pp_link) {
 			int pagetype = PDX(page2pa(pp)) >= pdx_limit;
-			*tp[pagetype] = pp;
+            *tp[pagetype] = pp;
 			tp[pagetype] = &pp->pp_link;
 		}
 		*tp[1] = 0;
@@ -505,9 +518,11 @@ check_page_free_list(bool only_low_memory)
 	// if there's a page that shouldn't be on the free list,
 	// try to make sure it eventually causes trouble.
 	for (pp = page_free_list; pp; pp = pp->pp_link)
-		if (PDX(page2pa(pp)) < pdx_limit)
+		if (PDX(page2pa(pp)) < pdx_limit) {
+            panic("physical address:%d\n", page2pa(pp));
 			memset(page2kva(pp), 0x97, 128);
-
+        }
+panic("debug\n");
 	first_free_page = (char *) boot_alloc(0);
 	for (pp = page_free_list; pp; pp = pp->pp_link) {
 		// check that we didn't corrupt the free list itself
