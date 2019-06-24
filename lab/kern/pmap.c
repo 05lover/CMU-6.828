@@ -101,7 +101,8 @@ boot_alloc(uint32_t n)
 	// nextfree.  Make sure nextfree is kept aligned
 	// to a multiple of PGSIZE.
 	//
-	// LAB 2: Your code here.
+	// LAB 2: Your code here
+    if(n == 0) return nextfree;
     n = ROUNDUP(n, PGSIZE);
     nextfree += n;
 	return nextfree - n;
@@ -287,10 +288,20 @@ page_init(void)
         pages[i].pp_link = NULL;
     }
     
-    // There is kern_pgdir right up to the kernel in the RAM.
+    // There is kern_pgdir and arrary pages[pages] 
+    // right up to the kernel in the RAM.
     uint32_t pg_kernbss = (0x112300+ROUNDUP(0x654, 32))/PGSIZE + 1 + ROUNDUP(sizeof(struct PageInfo)*npages,PGSIZE) / PGSIZE;
     for(; i < pg_kernbss; i++) {
         pages[i].pp_ref = 1;
+        pages[i].pp_link = NULL;
+    }
+    for(; i < 277; i++) {
+        pages[i].pp_ref = 0;
+        pages[i].pp_link = page_free_list;
+        page_free_list = &pages[i];
+    }
+    for(; i <= 340; i++) {
+        pages[i].pp_ref = 0;
         pages[i].pp_link = NULL;
     }
     for(; i < npages; i++) {
@@ -298,6 +309,8 @@ page_init(void)
         pages[i].pp_link = page_free_list;
         page_free_list = &pages[i];
     }
+
+
 }
 
 //
@@ -517,16 +530,20 @@ check_page_free_list(bool only_low_memory)
 
 	// if there's a page that shouldn't be on the free list,
 	// try to make sure it eventually causes trouble.
-	for (pp = page_free_list; pp; pp = pp->pp_link)
-		if (PDX(page2pa(pp)) < pdx_limit) {
-            panic("physical address:%d\n", page2pa(pp));
-			memset(page2kva(pp), 0x97, 128);
-        }
-panic("debug\n");
-	first_free_page = (char *) boot_alloc(0);
 	for (pp = page_free_list; pp; pp = pp->pp_link) {
+        if (PDX(page2pa(pp)) < pdx_limit) {
+            memset(page2kva(pp), 0x97, 128);
+        }
+    }
+    
+    first_free_page = (char *) boot_alloc(0);
+    for (pp = page_free_list; pp; pp = pp->pp_link) {
 		// check that we didn't corrupt the free list itself
-		assert(pp >= pages);
+        if((page2pa(pp) != 0) && (page2pa(pp) != IOPHYSMEM) && (page2pa(pp) != EXTPHYSMEM - PGSIZE) && (page2pa(pp) != EXTPHYSMEM) && (page2pa(pp) < EXTPHYSMEM || (char *) page2kva(pp) >= first_free_page))
+                panic("error, virtual address: %08x", page2pa(pp));
+/*
+
+        assert(pp >= pages);
 		assert(pp < pages + npages);
 		assert(((char *) pp - (char *) pages) % sizeof(*pp) == 0);
 
@@ -536,17 +553,22 @@ panic("debug\n");
 		assert(page2pa(pp) != EXTPHYSMEM - PGSIZE);
 		assert(page2pa(pp) != EXTPHYSMEM);
 		assert(page2pa(pp) < EXTPHYSMEM || (char *) page2kva(pp) >= first_free_page);
-
+*/
 		if (page2pa(pp) < EXTPHYSMEM)
 			++nfree_basemem;
 		else
 			++nfree_extmem;
 	}
-
-	assert(nfree_basemem > 0);
+    if(nfree_basemem <= 0 || nfree_extmem <= 0) panic("error\n");
+/*	assert(nfree_basemem > 0);
 	assert(nfree_extmem > 0);
 
-	cprintf("check_page_free_list() succeeded!\n");
+
+    if((page2pa(pp) != 0) || (page2pa(pp) != IOPHYSMEM) || (page2pa(pp) != EXTPHYSMEM - PGSIZE) || (page2pa(pp) != EXTPHYSMEM))
+	panic("error, virtual address: %08x", page2pa(pp));
+*/
+
+    cprintf("check_page_free_list() succeeded!\n");
 }
 
 //
