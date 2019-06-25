@@ -169,7 +169,7 @@ mem_init(void)
     
     check_page_free_list(1);
     check_page_alloc();
-	check_page();
+    check_page();
 
 	//////////////////////////////////////////////////////////////////////
 	// Now we set up virtual memory
@@ -328,10 +328,13 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
+    if(page_free_list == NULL)
+        return NULL;
 	// Fill this function in
     struct PageInfo *pg_alloc_pi = page_free_list;
     char *pg_alloc_cp = (char *)page2kva(pg_alloc_pi);
-    memset(pg_alloc_cp, '\0', PGSIZE);
+    if(alloc_flags & ALLOC_ZERO)
+        memset(pg_alloc_cp, '\0', PGSIZE);
     page_free_list = pg_alloc_pi->pp_link;
     pg_alloc_pi->pp_link = NULL;
     return pg_alloc_pi;
@@ -539,9 +542,9 @@ check_page_free_list(bool only_low_memory)
     first_free_page = (char *) boot_alloc(0);
     for (pp = page_free_list; pp; pp = pp->pp_link) {
 		// check that we didn't corrupt the free list itself
-        if((page2pa(pp) != 0) && (page2pa(pp) != IOPHYSMEM) && (page2pa(pp) != EXTPHYSMEM - PGSIZE) && (page2pa(pp) != EXTPHYSMEM) && (page2pa(pp) < EXTPHYSMEM || (char *) page2kva(pp) >= first_free_page))
+        if((page2pa(pp) == 0) || (page2pa(pp) == IOPHYSMEM) || (page2pa(pp) == EXTPHYSMEM - PGSIZE) || (page2pa(pp) == EXTPHYSMEM) || (page2pa(pp) >= EXTPHYSMEM && (char *) page2kva(pp) < first_free_page))
                 panic("error, virtual address: %08x", page2pa(pp));
-/*
+
 
         assert(pp >= pages);
 		assert(pp < pages + npages);
@@ -553,20 +556,15 @@ check_page_free_list(bool only_low_memory)
 		assert(page2pa(pp) != EXTPHYSMEM - PGSIZE);
 		assert(page2pa(pp) != EXTPHYSMEM);
 		assert(page2pa(pp) < EXTPHYSMEM || (char *) page2kva(pp) >= first_free_page);
-*/
+
 		if (page2pa(pp) < EXTPHYSMEM)
 			++nfree_basemem;
 		else
 			++nfree_extmem;
 	}
     if(nfree_basemem <= 0 || nfree_extmem <= 0) panic("error\n");
-/*	assert(nfree_basemem > 0);
+	assert(nfree_basemem > 0);
 	assert(nfree_extmem > 0);
-
-
-    if((page2pa(pp) != 0) || (page2pa(pp) != IOPHYSMEM) || (page2pa(pp) != EXTPHYSMEM - PGSIZE) || (page2pa(pp) != EXTPHYSMEM))
-	panic("error, virtual address: %08x", page2pa(pp));
-*/
 
     cprintf("check_page_free_list() succeeded!\n");
 }
@@ -596,21 +594,23 @@ check_page_alloc(void)
 	assert((pp0 = page_alloc(0)));
 	assert((pp1 = page_alloc(0)));
 	assert((pp2 = page_alloc(0)));
-
+cprintf("%08x %08x %08x\n", page2pa(pp0), page2pa(pp1), page2pa(pp2));
 	assert(pp0);
 	assert(pp1 && pp1 != pp0);
 	assert(pp2 && pp2 != pp1 && pp2 != pp0);
-	assert(page2pa(pp0) < npages*PGSIZE);
-	assert(page2pa(pp1) < npages*PGSIZE);
+    //assert(page2pa(pp0) < npages*PGSIZE);
+    panic("1 npages*PGSIZE\n", npages*PGSIZE);
+	panic("page2pa(pp0):%08x npages*PGSIZE:%08x\n",page2pa(pp0), npages*PGSIZE);
+    assert(page2pa(pp1) < npages*PGSIZE);
 	assert(page2pa(pp2) < npages*PGSIZE);
-
+panic("solved\n");
 	// temporarily steal the rest of the free pages
 	fl = page_free_list;
 	page_free_list = 0;
 
 	// should be no free memory
 	assert(!page_alloc(0));
-
+panic("solved\n");
 	// free and re-allocate?
 	page_free(pp0);
 	page_free(pp1);
