@@ -594,13 +594,11 @@ check_page_alloc(void)
 	assert((pp0 = page_alloc(0)));
 	assert((pp1 = page_alloc(0)));
 	assert((pp2 = page_alloc(0)));
-cprintf("%08x %08x %08x\n", page2pa(pp0), page2pa(pp1), page2pa(pp2));
 	assert(pp0);
 	assert(pp1 && pp1 != pp0);
 	assert(pp2 && pp2 != pp1 && pp2 != pp0);
-    //assert(page2pa(pp0) < npages*PGSIZE);
-    panic("1 npages*PGSIZE\n", npages*PGSIZE);
-	panic("page2pa(pp0):%08x npages*PGSIZE:%08x\n",page2pa(pp0), npages*PGSIZE);
+    assert(page2pa(pp0) < 0x8000000);
+    panic("1\n");
     assert(page2pa(pp1) < npages*PGSIZE);
 	assert(page2pa(pp2) < npages*PGSIZE);
 panic("solved\n");
