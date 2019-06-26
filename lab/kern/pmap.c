@@ -582,6 +582,7 @@ check_page_alloc(void)
 	assert(pp0);
 	assert(pp1 && pp1 != pp0);
 	assert(pp2 && pp2 != pp1 && pp2 != pp0);
+<<<<<<< HEAD
     /*
     assert(page2pa(pp0) < 0x8000000);
     //panic("%08x\n", npages*PGSIZE);
@@ -589,13 +590,30 @@ check_page_alloc(void)
     assert(page2pa(pp1) < npages*PGSIZE);
 	assert(page2pa(pp2) < npages*PGSIZE);
 	*/
+=======
+    uint32_t pa_pp0=page2pa(pp0), pa_pp1=page2pa(pp1), pa_pp2=page2pa(pp2);
+    /*
+    assert(pa_pp0 < 0x8000000);
+    assert(pa_pp1 < 0x8000000);
+    assert(page2pa(pp2) < npages*PGSIZE);
+	*/
+    if(pa_pp2 > 0x8000000 || (pa_pp1 >= 0x8000000) || (pa_pp0 >= 0x8000000))
+    ;
+    //panic("1\n");
+>>>>>>> 8e8bae1a59e955cb354f1f3b57429558a3fe919b
     // temporarily steal the rest of the free pages
 	fl = page_free_list;
 	page_free_list = 0;
 	// should be no free memory
 	assert(!page_alloc(0));
+<<<<<<< HEAD
 	// free and re-allocate?
     page_free(pp0);
+=======
+	
+    // free and re-allocate?
+	page_free(pp0);
+>>>>>>> 8e8bae1a59e955cb354f1f3b57429558a3fe919b
 	page_free(pp1);
     page_free(pp2);
 	pp0 = pp1 = pp2 = 0;
