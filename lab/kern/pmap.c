@@ -383,7 +383,27 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+    //1. find the page table
+    pgdir = &pgdir[PDX(va)];
+    if()
+    pde_t *p = (pde_t *) KADDR(PTE_ADDR(* pgdir));//page table
+    physaddr_t pa = PTE_ADDR(p[PTX(va)]);
+    //2. PageInfo --> pa, find the index
+    if(!page table page) {
+        if(create == false)
+            return false;
+        else {
+            if(va = page_alloc())
+                return va;
+            else 
+                return false;
+            }
+    }
+    else {
+        
+    }
+
+    return NULL;
 }
 
 //
