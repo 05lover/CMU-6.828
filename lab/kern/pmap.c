@@ -383,27 +383,23 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-    //1. find the page table
+    //1. find the page table entry, figure out wether it was empty.
     pgdir = &pgdir[PDX(va)];
-    if()
-    pde_t *p = (pde_t *) KADDR(PTE_ADDR(* pgdir));//page table
-    physaddr_t pa = PTE_ADDR(p[PTX(va)]);
-    //2. PageInfo --> pa, find the index
-    if(!page table page) {
-        if(create == false)
-            return false;
-        else {
-            if(va = page_alloc())
-                return va;
-            else 
-                return false;
-            }
+    if(!(*pgdir & PTE_P)) {
+        if(create == 0)
+            return NULL;
+        else {//create = 1
+            struct PageInfo *pg_alloc = page_alloc(1);
+            pg_alloc->pp_ref ++;
+            if(pg_alloc == NULL)
+                return NULL;
+            else
+                return (pte_t *)page2kva(pg_alloc); 
+        }
     }
-    else {
-        
-    }
-
-    return NULL;
+//2. return the page table entry
+    pte_t *p = (pte_t *) KADDR(PTE_ADDR(* pgdir));//page table
+    return &p[PTX(va)];
 }
 
 //
@@ -421,6 +417,13 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+    for(int i=0; i < size/PGSIZE; i++) {
+            pte_t *p = pgdir_walk(pgdir, va, 1);
+            if(p = NULL) return;
+            *p = pa | (perm | PTE_P);
+            va += PGSIZE;
+            pa += PGSIZE;
+    }
 }
 
 //
@@ -452,7 +455,8 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
-	return 0;
+    
+    return 0;
 }
 
 //
