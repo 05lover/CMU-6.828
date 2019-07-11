@@ -383,7 +383,7 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-    //1. find the page table entry, figure out wether it was empty.
+    //1. find the page directory entry, figure out wether it was empty.
     pgdir = &pgdir[PDX(va)];
     if(!(*pgdir & PTE_P)) {
         if(create == 0)
@@ -455,7 +455,20 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
-    
+    pte_t *p = pgdir_walk(pgdir, va, 0);//do not creat the page table entry?
+    if(p == NULL)
+    {
+        //pde is empty or pte is empty
+    }
+    else
+    {
+        if( ((struct PageInfo *)(*p) & ~0xFFF) == page2pa(pp))
+        {
+            return 0;
+        }
+        page_remove(pgdir, va);
+        //allocate();
+    }
     return 0;
 }
 
