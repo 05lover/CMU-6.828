@@ -175,7 +175,9 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
-
+    int perm_upages = PTE_U | PTE_P;
+    //what's the pages itself?
+    boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), perm_upages);
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -187,6 +189,8 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
+    int perm_kern_stack = PTE_P | PTE_W;
+    boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), perm_kern_stack);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -196,8 +200,9 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-
-	// Check that the initial page directory has been set up correctly.
+    int perm_all = PTE_W | PTE_P;
+    boot_map_region(kern_pgdir, KERNBASE, 1<<28, 0, perm_all);
+    // Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 
 	// Switch from the minimal entry page directory to the full kern_pgdir
@@ -217,7 +222,6 @@ mem_init(void)
 	cr0 |= CR0_PE|CR0_PG|CR0_AM|CR0_WP|CR0_NE|CR0_MP;
 	cr0 &= ~(CR0_TS|CR0_EM);
 	lcr0(cr0);
-
 	// Some more checks, only possible after kern_pgdir is installed.
 	check_page_installed_pgdir();
 }
@@ -416,7 +420,6 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 	// Fill this function in
     for(int i=0; i < size/PGSIZE; i++) {
             pte_t *p = pgdir_walk(pgdir, (const void *)va, 1);
-            if(p == NULL) return;
             *p = pa | (perm | PTE_P);
             va += PGSIZE;
             pa += PGSIZE;
@@ -712,9 +715,8 @@ check_kern_pgdir(void)
 	// check pages array
 	n = ROUNDUP(npages*sizeof(struct PageInfo), PGSIZE);
 	for (i = 0; i < n; i += PGSIZE)
-		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
-
-
+        assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
+//panic("before check_kern_pgdir() yes!\n");
 	// check phys mem
 	for (i = 0; i < npages * PGSIZE; i += PGSIZE)
 		assert(check_va2pa(pgdir, KERNBASE + i) == i);
@@ -935,18 +937,19 @@ check_page_installed_pgdir(void)
 	page_free(pp0);
 	memset(page2kva(pp1), 1, PGSIZE);
 	memset(page2kva(pp2), 2, PGSIZE);
-	page_insert(kern_pgdir, pp1, (void*) PGSIZE, PTE_W);
-	assert(pp1->pp_ref == 1);
-	assert(*(uint32_t *)PGSIZE == 0x01010101U);
-	page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W);
+    page_insert(kern_pgdir, pp1, (void*) PGSIZE, PTE_W);
+    assert(pp1->pp_ref == 1);
+    cprintf("%x\n",*(uint32_t *)PGSIZE);
+    //problem is in the function page_insert!
+    assert(*(uint32_t *)PGSIZE == 0x01010101U);
+    page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W);
 	assert(*(uint32_t *)PGSIZE == 0x02020202U);
 	assert(pp2->pp_ref == 1);
 	assert(pp1->pp_ref == 0);
 	*(uint32_t *)PGSIZE = 0x03030303U;
 	assert(*(uint32_t *)page2kva(pp2) == 0x03030303U);
-	page_remove(kern_pgdir, (void*) PGSIZE);
-	assert(pp2->pp_ref == 0);
-
+    page_remove(kern_pgdir, (void*) PGSIZE);
+    assert(pp2->pp_ref == 0);
 	// forcibly take pp0 back
 	assert(PTE_ADDR(kern_pgdir[0]) == page2pa(pp0));
 	kern_pgdir[0] = 0;
