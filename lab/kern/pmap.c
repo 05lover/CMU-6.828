@@ -149,13 +149,7 @@ mem_init(void)
 	// each physical page, there is a corresponding struct PageInfo in this
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
-	// Your code goes herei:
-
-    // Ignore the pages allocted to PageInfo-the manager.
-    // It seems like we don't need to use the boot_alloc, cause page_init says
-    // [PAGESIZE, npages_basemem*PAGESIZE] and [0,PAGESIZE] is used by the 
-    // kern_pgdir
-    //struct PageInfo pages[npages];
+	// Your code goes here:
     pages = (struct PageInfo*)boot_alloc(sizeof(struct PageInfo)*npages);
     memset((char *)pages, 0, sizeof(struct PageInfo)*npages);
 	
