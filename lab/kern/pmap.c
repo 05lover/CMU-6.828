@@ -213,7 +213,6 @@ mem_init(void)
 	// If the machine reboots at this point, you've probably set up your
 	// kern_pgdir wrong.
 	lcr3(PADDR(kern_pgdir));
-
 	check_page_free_list(0);
 
 	// entry.S set the really important flags in cr0 (including enabling
@@ -458,15 +457,9 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	// Fill this function in
     //1.do not create a page
     pte_t *p = pgdir_walk(pgdir, va, 0);
-    if((int)va == 0x1000)
-    cprintf("why *p:%p\n", *p);
     if( p != NULL){
         if(*p & PTE_P){
-            if(*p == 0x3fd000)
-                cprintf("here\n");
             if(PTE_ADDR(*p) == page2pa(pp)){
-                if(*p == 0x3fd000)
-                    cprintf("here!\n");
                 *p = page2pa(pp) | perm | PTE_P;
                 return 0;
             }
@@ -484,13 +477,9 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
     }
     else {
         p = pgdir_walk(pgdir, va, 1);
-        if(page2pa(pp) == 0x3bc000) 
-        cprintf("%p va:%p PDX(va):%u PTX(va):%u\n", p, va, PDX(va), PTX(va));
         if(p == NULL)
             return -E_NO_MEM;
-        p[PTX(va)] = page2pa(pp)|perm|PTE_P;
-        if(page2pa(pp) == 0x3bc000)
-            cprintf("%p\n",p[PTX(va)]);
+        *p = page2pa(pp)|perm|PTE_P;
         pp->pp_ref++;
     }
     return 0;
@@ -768,13 +757,9 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 	pte_t *p;
 
 	pgdir = &pgdir[PDX(va)];
-    if(va == 0x1000)
-        cprintf("pdx %u\n", *pgdir&PTE_P);
     if (!(*pgdir & PTE_P))
 		return ~0;
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
-    if(va == 0x1000)
-        cprintf("p:%p ,pte_t %p,  ptx %u\n", p,p[PTX(va)],PTX(va));
 	if (!(p[PTX(va)] & PTE_P))
 		return ~0;
 	return PTE_ADDR(p[PTX(va)]);
@@ -850,8 +835,8 @@ check_page(void)
 	assert(pp2->pp_ref == 1);
 	assert(*pgdir_walk(kern_pgdir, (void*) PGSIZE, 0) & PTE_U);
 	assert(kern_pgdir[0] & PTE_U);
-cprintf("pp2:%p\n", page2pa(pp2));
-	// should be able to remap with fewer permissions
+
+    // should be able to remap with fewer permissions
 	assert(page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W) == 0);
 	assert(*pgdir_walk(kern_pgdir, (void*) PGSIZE, 0) & PTE_W);
 	assert(!(*pgdir_walk(kern_pgdir, (void*) PGSIZE, 0) & PTE_U));
@@ -953,25 +938,9 @@ check_page_installed_pgdir(void)
 	memset(page2kva(pp1), 1, PGSIZE);
 	memset(page2kva(pp2), 2, PGSIZE);
     pde_t *pde_tmp = kern_pgdir;
-    uintptr_t pgsize = PGSIZE;
-    if(pde_tmp[PDX(pgsize)] == 0)
-        cprintf("create\n");
-    else
-    {
-        pte_t *pte_tmp = KADDR(PTE_ADDR(pde_tmp[PDX(pgsize)]));
-        if(pte_tmp[PTX(pgsize)] == 0)
-            cprintf("here we go\n");
-    }    
-    cprintf("pp1->pp_ref:%u\n", pp1->pp_ref);
     page_insert(kern_pgdir, pp1, (void*) PGSIZE, PTE_W);
     assert(pp1->pp_ref == 1);
-    cprintf("check_va2pa(PGSIZE) pa:%p va2pa:%p\n", page2pa(pp1), check_va2pa(kern_pgdir,(uintptr_t)PGSIZE)); 
-    cprintf("%x\n",*(uint32_t *)PGSIZE);
-    panic("under construction!\n");
-    //problem is in the function page_insert! However, 
-    //page_insert and page_remove are checked before.
-    //*pointer read from the memory
-    //virtual memory
+    pte_t * result = pgdir_walk(kern_pgdir, (void *)PGSIZE, 0);
     assert(*(uint32_t *)PGSIZE == 0x01010101U);
     page_insert(kern_pgdir, pp2, (void*) PGSIZE, PTE_W);
 	assert(*(uint32_t *)PGSIZE == 0x02020202U);
