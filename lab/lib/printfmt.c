@@ -182,12 +182,8 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 				if (altflag && (ch < ' ' || ch > '~'))
 					putch('?', putdat);
 				else
-                {
-                    
-                    //ch |= 0xa00;
 					putch(ch, putdat);
-			    }
-            for (; width > 0; width--)
+			for (; width > 0; width--)
 				putch(' ', putdat);
 			break;
 
@@ -210,9 +206,10 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		// (unsigned) octal
 		case 'o':
 			// Replace this with your code.
-            num = getuint(&ap, lflag);
-            base = 8;
-            goto number;
+			putch('X', putdat);
+			putch('X', putdat);
+			putch('X', putdat);
+			break;
 
 		// pointer
 		case 'p':
